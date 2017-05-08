@@ -15,7 +15,7 @@ message()
 }
 
 check_yubikey_present() {
-    ykchalresp -2 AreYouThere > /dev/null 2>%1
+    ykchalresp -KEY_SLOT AreYouThere > /dev/null 2>%1
     return $?
 }
 
@@ -38,7 +38,7 @@ PW="$($cryptkeyscript "Please insert yubikey and press enter or enter a valid pa
 	
 if check_yubikey_present; then
 	message "Accessing yubikey..."
-    R="$(ykchalresp -2 "$PW" 2>/dev/null || true)"
+    R="$(ykchalresp -KEY_SLOT "$PW" 2>/dev/null || true)"
 	message "Retrieved the response from the Yubikey"
 	echo -n "$R"
 else

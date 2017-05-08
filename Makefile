@@ -5,6 +5,7 @@ info:
 
 VERSION=0.4
 SRC_DIR = yubikey_luks.orig
+KEY_SLOT ?= 2
 
 ifneq (${DST_DIR},)
 	USER=$(shell whoami)
@@ -12,7 +13,7 @@ else
 	USER=root
 endif
 
-debianize:
+debianize: set-slot
 	rm -fr DEBUILD
 	mkdir -p DEBUILD/${SRC_DIR}
 	cp -r * DEBUILD/${SRC_DIR} || true
@@ -34,8 +35,10 @@ ppa:
 	# Upload to launchpad:
 	dput ppa:privacyidea/privacyidea DEBUILD/yubikey-luks_${VERSION}-?_source.changes
 
+set-slot:
+	sed -i 's/KEY_SLOT/${KEY_SLOT}/g' key-script script-bottom yubikey-luks-enroll
 
-install:
+install: set-slot
 	install -D -o ${USER} -g ${USER} -m755 hook ${DST_DIR}/usr/share/initramfs-tools/hooks/yubikey-luks
 	install -D -o ${USER} -g ${USER} -m755 script-top ${DST_DIR}/usr/share/initramfs-tools/scripts/local-top/yubikey-luks
 	install -D -o ${USER} -g ${USER} -m755 script-bottom ${DST_DIR}/usr/share/initramfs-tools/scripts/local-bottom/yubikey-luks
