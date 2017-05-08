@@ -6,6 +6,12 @@ info:
 VERSION=0.4
 SRC_DIR = yubikey_luks.orig
 
+ifneq (${DST_DIR},)
+	USER=$(shell whoami)
+else
+	USER=root
+endif
+
 debianize:
 	rm -fr DEBUILD
 	mkdir -p DEBUILD/${SRC_DIR}
@@ -29,3 +35,13 @@ ppa:
 	dput ppa:privacyidea/privacyidea DEBUILD/yubikey-luks_${VERSION}-?_source.changes
 
 
+install:
+	install -D -o ${USER} -g ${USER} -m755 hook ${DST_DIR}/usr/share/initramfs-tools/hooks/yubikey-luks
+	install -D -o ${USER} -g ${USER} -m755 script-top ${DST_DIR}/usr/share/initramfs-tools/scripts/local-top/yubikey-luks
+	install -D -o ${USER} -g ${USER} -m755 script-bottom ${DST_DIR}/usr/share/initramfs-tools/scripts/local-bottom/yubikey-luks
+	install -D -o ${USER} -g ${USER} -m755 key-script ${DST_DIR}/usr/share/yubikey-luks/ykluks-keyscript
+	install -D -o ${USER} -g ${USER} -m755 yubikey-luks-enroll ${DST_DIR}/usr/bin/yubikey-luks-enroll
+	install -D -o ${USER} -g ${USER} -m644 yubikey-luks-enroll.1 ${DST_DIR}/usr/man/man1/yubikey-luks-enroll.1
+ifeq (${USER},root)
+	update-initramfs -u
+endif
