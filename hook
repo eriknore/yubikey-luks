@@ -3,6 +3,7 @@
 set -e
 
 PREREQ="cryptroot"
+CONF=/etc/ykluks.conf
 
 prereqs()
 {
@@ -20,4 +21,6 @@ esac
 
 copy_exec /usr/bin/ykchalresp
 cp /usr/share/yubikey-luks/ykluks-keyscript "${DESTDIR}/sbin/ykluks-keyscript"
+if [ -f $CONF ]; then
+    cp $CONF "${DESTDIR}/etc/${CONF}"
 exit 0

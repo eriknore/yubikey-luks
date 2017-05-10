@@ -1,57 +1,93 @@
 #!/bin/sh
 SLOT=7
+YUBISLOT=2
 DISK="/dev/sda3"
 CLEAR_SLOT=0
-TMP_FILE=/tmp/new_key
+CONF=/etc/ykluks.conf
 set -e
 
+check_yubikey_present() {
+	ykchalresp -$YUBISLOT AreYouThere > /dev/null 2>&1
+	return $?
+}
 
-
-while getopts ":s:d:hc" opt; do
+err() {
+	echo "$@" >&2
+	exit 1
+}
+	
+while getopts ":y:s:d:hc" opt; do
   case $opt in
+	y)
+	 	YUBISLOT=$OPTARG
+		;;
 	s)
 		SLOT=$OPTARG
-		echo "setting slot to $OPTARG."
 		;;
 	d)
 		DISK=$OPTARG
-		echo "setting disk to $OPTARG."
 		;;
 	c)      CLEAR_SLOT=1
-		echo "clearing slot"
 		;;
 	h)
 		echo 
 		echo " -d <partition>: set the partition"
-		echo " -s <slot>     : set the slot"
+		echo " -y <slot>     : Yubikey slot to use"
+		echo " -s <slot>     : set the LUKS slot"
                 echo " -c            : clear the slot prior to writing"
 		echo
 		exit 1
 		;;
 	\?)
-		echo "Invalid option: -$OPTARG" >&2
+		err "Invalid option: -$OPTARG"
 		;;
   esac
 done
 
-echo "This script will utilize slot $SLOT on drive $DISK.  If this is not what you intended, exit now!"
-
-if [ $CLEAR_SLOT -eq 1 ]; then
-	echo "Killing LUKS slot $SLOT"
-	cryptsetup luksKillSlot $DISK $SLOT
+echo "This script will utilize LUKS slot $SLOT on drive $DISK, using slot $YUBISLOT on the Yubikey."
+echo -n "continue? [y/n]: "
+read REPLY
+if ! echo "$REPLY" | grep -iEq '^(y|yes)$'; then
+	exit 1
 fi
+
+if ! check_yubikey_present; then
+	err "No Yubikey found, please insert your Yubikey and try again."
+fi
+
+if [ -f $CONF ]; then
+	err "Config file already exists! Please remove it and try again."
+fi
+
 echo "Adding yubikey to initrd"
-P1=$(/lib/cryptsetup/askpass "Please insert a yubikey and enter a new password. This is the password that will only work while your yubikey is installed in your computer.")
+P1=$(/lib/cryptsetup/askpass "Please enter a password that will only work while your yubikey is installed in your computer:")
 P2=$(/lib/cryptsetup/askpass "Please enter the yubikey password again:")
 if [ "$P1" != "$P2" ]; then
 	echo "Passwords do not match"
 	exit 1
 fi
-echo "You may now be prompted for an existing passphrase. This is NOT the passphrase you just entered, this is the passphrase that you currently use to unlock your LUKS encrypted drive."
-R="$(ykchalresp -KEY_SLOT "$P1" 2>/dev/null || true)"
-touch $TMP_FILE
-chmod 600 $TMP_FILE
-echo -n "$R" > $TMP_FILE
-cryptsetup --key-slot=$SLOT luksAddKey $DISK $TMP_FILE
-rm $TMP_FILE
+
+LUKSPW=$(/lib/cryptsetup/askpass "Please enter any current LUKS password used for $DISK:")
+
+if [ $CLEAR_SLOT -eq 1 ]; then
+	echo "Killing LUKS slot $SLOT"
+	printf "%s\n" "$LUKSPW" | cryptsetup luksKillSlot $DISK $SLOT
+fi
+
+# OTP is 32 (pseudo)random chars
+CURRENT_OTP=$(dd if=/dev/urandom bs=24 count=1 2> /dev/null | base64)
+# For future use
+NEXT_OTP=$(dd if=/dev/urandom bs=24 count=1 2> /dev/null | base64)
+YUBIPW="$(ykchalresp -$YUBISLOT "${OTP}${P1}" 2>/dev/null)"
+printf "%s\n" "$LUKSPW" "$YUBIPW" "$YUBIPW" | cryptsetup --key-slot=$SLOT luksAddKey $DISK
+
+# Create conf file
+cat << EOF > $CONF
+# Auto generated Yubikey LUKSi configuration file
+# DO NOT EDIT OR REMOVE! Cannot decrypt if OTPs are lost!
+CURRENT_OTP="$CURRENT_OTP"
+NEXT_OTP="$NEXT_OTP"
+SLOT=$YUBISLOT
+EOF
+echo "Done!"
 exit 0

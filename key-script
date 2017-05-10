@@ -4,8 +4,7 @@
 #
 set -e
 
-message()
-{
+message() {
     if [ -x /bin/plymouth ] && plymouth --ping; then
         plymouth message --text="$@"
     else
@@ -15,20 +14,31 @@ message()
 }
 
 check_yubikey_present() {
-    ykchalresp -KEY_SLOT AreYouThere > /dev/null 2>%1
+    ykchalresp -$SLOT AreYouThere > /dev/null 2>&1
     return $?
 }
+
+try_replace_key() {
+    printf "%s\n" "$CURRENT" "$NEW" "$NEW" | /sbin/cryptsetup luksChangeKey $cryptsource 2>/dev/null
+    return $?
+}
+
 
 udevadm settle || true
 
 # source for log_*_msg() functions, see LP: #272301
 . /scripts/functions
 
+# source configuration file
+if [ -f /etc/ykluks.conf ]; then
+    . /etc/ykluks.conf
+fi
+
 if [ -z "$cryptkeyscript" ]; then
-	cryptkey="Unlocking the disk $cryptsource ($crypttarget)\nEnter passphrase: "
-	if [ -x /bin/plymouth ] && plymouth --ping; then
-    	cryptkeyscript="plymouth ask-for-password --prompt"
-	    cryptkey=$(printf "$cryptkey")
+    cryptkey="Unlocking the disk $cryptsource ($crypttarget)\nEnter passphrase: "
+    if [ -x /bin/plymouth ] && plymouth --ping; then
+        cryptkeyscript="plymouth ask-for-password --prompt"
+        cryptkey=$(printf "$cryptkey")
     else
         cryptkeyscript="/lib/cryptsetup/askpass"
     fi
@@ -37,10 +47,16 @@ fi
 PW="$($cryptkeyscript "Please insert yubikey and press enter or enter a valid passphrase")"
 	
 if check_yubikey_present; then
-	message "Accessing yubikey..."
-    R="$(ykchalresp -KEY_SLOT "$PW" 2>/dev/null || true)"
-	message "Retrieved the response from the Yubikey"
-	echo -n "$R"
+    message "Accessing yubikey..."
+    CURRENT="$(ykchalresp -$SLOT "${CURRENT_OTP}${PW}" 2>/dev/null)"
+    NEW="$(ykchalresp -$SLOT "${NEXT_OTP}${PW}" 2>/dev/null)"
+    message "Retrieved the response from the Yubikey"
+    # Try replacing the current key with the next one
+    if try_replace_key; then
+	echo -n "$NEW"
+    else
+        # already failed, doesn't matter what we return
+        echo -n "$CURRENT"
 else
 	echo -n "$PW"
 fi
