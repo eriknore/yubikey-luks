@@ -28,6 +28,13 @@ prereqs)
 	;;
 esac
 
+# Propagate update from initrd to rootfs on disk
+if [ -f /tmp/ykluks.updated ]; then
+	mount -o remount -w /dev/mapper/ubuntu--vg-root /root
+	mv root/etc/ykluks.conf /root/etc/ykluks.conf.used
+	mount -o remount -r /dev/mapper/ubuntu--vg-root /root
+fi
+
 message "Welcome!"
 
 exit 0

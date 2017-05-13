@@ -83,10 +83,10 @@ printf "%s\n" "$LUKSPW" "$YUBIPW" "$YUBIPW" | cryptsetup --key-slot=$SLOT luksAd
 
 # Create conf file
 cat << EOF > $CONF
-# Auto generated Yubikey LUKSi configuration file
+# Auto generated Yubikey LUKS configuration file
 # DO NOT EDIT OR REMOVE! Cannot decrypt if OTPs are lost!
-CURRENT_OTP="$CURRENT_OTP"
-NEXT_OTP="$NEXT_OTP"
+CURRENT_OTP=$CURRENT_OTP
+NEXT_OTP=$NEXT_OTP
 SLOT=$YUBISLOT
 EOF
 echo "Done!"

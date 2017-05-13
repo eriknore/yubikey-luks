@@ -1,0 +1,46 @@
+#!/bin/bash
+
+start() {
+	if [ ! -f /etc/ykluks.conf.used ]; then
+		# Nothing to do
+		exit 0
+	fi
+
+	source /etc/ykluks.conf.used
+
+	NEW_OTP=$(dd if=/dev/urandom bs=24 count=1 2> /dev/null | base64)
+
+	# Create new conf file
+	cat << EOF > /etc/ykluks.conf
+# Auto generated Yubikey LUKS configuration file
+# DO NOT EDIT OR REMOVE! Cannot decrypt if OTPs are lost!
+CURRENT_OTP=$NEXT_OTP
+NEXT_OTP=$NEW_OTP
+SLOT=$YUBISLOT
+EOF
+
+	rm /etc/ykluks.conf.used
+
+	update-initramfs -u
+
+	# DEBUG
+	touch /home/ykluks.finished
+}
+
+case "$1" in
+  start)
+        start
+        ;;
+  stop)
+        ;;
+  status)
+        echo "Stopped"
+        ;;
+  restart)
+        stop
+        start
+        ;;
+   *)
+        echo $"Usage: $0 {start|stop|status|restart}"
+        exit 2
+esac

@@ -22,5 +22,6 @@ esac
 copy_exec /usr/bin/ykchalresp
 cp /usr/share/yubikey-luks/ykluks-keyscript "${DESTDIR}/sbin/ykluks-keyscript"
 if [ -f $CONF ]; then
-    cp $CONF "${DESTDIR}/etc/${CONF}"
+    cp $CONF "${DESTDIR}${CONF}"
+fi
 exit 0

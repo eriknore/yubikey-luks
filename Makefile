@@ -37,7 +37,9 @@ install:
 	install -D -o ${USER} -g ${USER} -m755 script-bottom ${DST_DIR}/usr/share/initramfs-tools/scripts/local-bottom/yubikey-luks
 	install -D -o ${USER} -g ${USER} -m755 key-script ${DST_DIR}/usr/share/yubikey-luks/ykluks-keyscript
 	install -D -o ${USER} -g ${USER} -m755 yubikey-luks-enroll ${DST_DIR}/usr/bin/yubikey-luks-enroll
+	install -D -o ${USER} -g ${USER} -m755 ykluks_update ${DST_DIR}/etc/init.d/ykluks_update
 	install -D -o ${USER} -g ${USER} -m644 yubikey-luks-enroll.1 ${DST_DIR}/usr/man/man1/yubikey-luks-enroll.1
 ifeq (${USER},root)
+	update-rc.d ykluks_update defaults
 	update-initramfs -u
 endif

@@ -53,10 +53,12 @@ if check_yubikey_present; then
     message "Retrieved the response from the Yubikey"
     # Try replacing the current key with the next one
     if try_replace_key; then
+	touch /tmp/ykluks.updated
 	echo -n "$NEW"
     else
         # already failed, doesn't matter what we return
         echo -n "$CURRENT"
+    fi
 else
 	echo -n "$PW"
 fi
